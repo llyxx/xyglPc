@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flight Route Management System</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.2/mapbox-gl.css' rel='stylesheet' />
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.2/mapbox-gl.js'></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment/2.29.4/moment.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+    body {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 350px;
+      height: 100%;
+      background-color: #333;
+      color: #fff;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-header {
+      padding: 10px;
+      border-bottom: 1px solid #444;
+      background-color: #222;
+    }
+    .tab-nav {
+      display: flex; 
+    }
+    .tab-btn {
+      padding: 10px 15px;
+      background-color: transparent;
+      border: none;
+      color: #ccc;
+      cursor: pointer;
+      flex-grow: 1;
+      text-align: center;
+    }
+    .tab-header {
+      display: flex;
+      justify-content: space-between;
+    }
+    .tab-header div {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .tab-header div.active {
+      border-bottom: 2px solid #0078ff;
+      color: #0078ff;
+    } 
+    .tab-btn.active {
+      background-color: #444;
+      color: white;
+    }
+    .search-container {
+      padding: 10px 10px 0px 10px;
+      background-color: #222;
+    }
+    .search-input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 8px;
+      border: 1px solid #555;
+      background-color: #333;
+      color: white;
+      border-radius: 3px;
+    }
+    .filter-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding:10px;
+      background-color: #222;
+    }
+    .filter-btn {
+      background-color: #444;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .filter-btn.active {
+      background-color: #0078ff;
+    }
+    .action-btns {
+      display: flex;
+      padding: 10px;
+      gap: 5px;
+      background-color: #222;
+    }
+    .action-btn {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .btn-primary {
+      background-color: #0078ff;
+      color: white;
+    }
+    .btn-secondary {
+      background-color: #444;
+      color: white;
+    }
+    .btn-danger {
+      background-color: #ff4444;
+      color: white;
+    }
+    .btn-success {
+      background-color: #4caf50;
+      color: white;
+    }
+    .routes-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .route-item {
+      padding: 15px;
+      border-bottom: 1px solid #444;
+      position: relative;
+      cursor: pointer;
+    }
+    .route-item:hover {
+      background-color: #2a2a2a;
+    }
+    .route-item.active {
+      background-color: #1a1a1a;
+    }
+    .route-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .route-name {
+      font-weight: bold;
+      /* color: #0078ff; */
+    }
+    .route-menu {
+      /* cursor: pointer;
+      color: #999;
+      font-size: 18px; */
+
+      position: absolute;
+      display: flex;
+      right: 12px;
+      bottom: 12px; 
+      gap: 5px;
+
+    }
+    .route-menu button {
+      background-color: #444;
+      border: none;
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .route-status {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+    .status-active {
+      background-color: #4caf50;
+      color: white;
+    }
+    .status-completed {
+      background-color: #2196f3;
+      color: white;
+    } 
+    .status-pending {
+      background-color: #ff9800;
+      color: white;
+    }
+    .route-info {
+      font-size: 13px;
+      color: #ccc;
+      margin-bottom: 5px;
+    }
+    .route-time {
+      font-size: 12px;
+      color: #999;
+    }
+    .map-container {
+      flex: 1;
+      position: relative;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    .stats-panel {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 0, 0, 0.7);
+      border-radius: 10px;
+      padding: 10px 20px;
+      color: white;
+      display: flex;
+      gap: 20px;
+      z-index: 10;
+    }
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 10px;
+    }
+    .stat-icon {
+      width: 32px;
+      height: 32px;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .stat-value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #0078ff;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: #ccc;
+    }
+    .menu-popup {
+      position: absolute;
+      right: 10px;
+      top: 30px;
+      background-color: #333;
+      border: 1px solid #444;
+      border-radius: 3px;
+      z-index: 100;
+    }
+    .menu-item {
+      padding: 8px 15px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .menu-item:hover {
+      background-color: #444;
+    }
+    .hidden {
+      display: none;
+    }
+    .pagination {
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+      background-color: #2a2a2a;
+    }
+    .pagination-btn {
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #444;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .pagination-btn.active {
+      background-color: #0078ff;
+    }
+    .map-controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      border-radius: 5px;
+      padding: 10px;
+      z-index: 10;
+    }
+    .map-control-btn {
+      display: block;
+      background-color: #444;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      margin-bottom: 5px;
+      border-radius: 3px;
+      font-size: 12px;
+      cursor: pointer;
+      width: 100%;
+    }
+    .map-control-btn:hover {
+      background-color: #555;
+    }
+    .map-control-btn.active {
+      background-color: #0078ff;
+    }
+    .edit-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      height: 100%;
+      width: 300px;
+      background-color: #222;
+      color: white;
+      padding: 15px;
+      z-index: 20;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .edit-panel.active {
+      transform: translateX(0);
+    }
+    .edit-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .edit-panel-title {
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      color: #999;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .edit-form {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 5px;
+      color: #ccc;
+    }
+    .form-input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #555;
+      background-color: #333;
+      color: white;
+      border-radius: 3px;
+    }
+    .form-select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #555;
+      background-color: #333;
+      color: white;
+      border-radius: 3px;
+    }
+    .edit-form-footer {
+      padding-top: 15px;
+      border-top: 1px solid #444;
+    }
+    .waypoints-list {
+      margin-top: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .waypoint-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      background-color: #333;
+      margin-bottom: 5px;
+      border-radius: 3px;
+    }
+    .waypoint-info {
+      font-size: 12px;
+    }
+    .waypoint-actions {
+      display: flex;
+      gap: 5px;
+    }
+    .waypoint-btn {
+      background: none;
+      border: none;
+      color: #999;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .waypoint-btn:hover {
+      color: #fff;
+    }
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      color: #fff;
+      background-color: #333;
+      padding: 20px;
+      border-radius: 5px;
+      width: 400px;
+      max-width: 90%;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .modal-body {
+      margin-bottom: 20px;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .instruction-panel {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 5px;
+      font-size: 14px;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .notification {
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 4px;
+        z-index: 1000;
+        opacity: 0;
+        transition: all 0.3s;
+    }
+    
+    .notification.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="tab-nav">
+        <button class="tab-btn active">任务管理</button>
+        <button class="tab-btn">航线管理</button>
+      </div>
+    </div>
+    <div class="search-container">
+      <input type="text" class="search-input" placeholder="计划内的航点或计划名称">
+      <div style="display: flex; gap: 5px;">
+        <input type="text" class="search-input" style="flex: 1;" placeholder="执行日期">
+      </div>
+    </div>
+    <div class="action-btns">
+      <button class="action-btn btn-secondary">重置</button>
+      <button class="action-btn btn-primary" id="create-route-btn">新增任务</button>
+    </div>
+    <div class="filter-container">
+      <button class="filter-btn active">全部</button>
+      <button class="filter-btn">执行中</button>
+      <button class="filter-btn">待执行</button>
+      <button class="filter-btn">已完成</button>
+    </div>
+ 
+    <div class="routes-list" id="routes-list">
+      <!-- Route items will be added here dynamically -->
+    </div>
+    <div class="pagination">
+      <button class="pagination-btn">1</button>
+      <button class="pagination-btn active">2</button>
+      <button class="pagination-btn">3</button>
+      <button class="pagination-btn">4</button>
+      <button class="pagination-btn">...</button>
+      <button class="pagination-btn">23</button>
+      <button class="pagination-btn">→</button>
+    </div>
+  </div>
+  <div class="map-container">
+    <div id="map"></div>
+    <div class="stats-panel">
+      <div class="stat-item">
+        <div class="stat-icon">📍</div>
+        <div class="stat-value" id="waypoints-count">0</div>
+        <div class="stat-label">航点数</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon">📏</div>
+        <div class="stat-value" id="flight-distance">0</div>
+        <div class="stat-label">预计飞行里程</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon">⏱️</div>
+        <div class="stat-value" id="flight-duration">0</div>
+        <div class="stat-label">预计飞行时长</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon">🔋</div>
+        <div class="stat-value" id="battery-usage">0</div>
+        <div class="stat-label">预计飞行电量</div>
+      </div>
+    </div>
+    <div class="map-controls hidden" id="map-edit-controls">
+      <button class="map-control-btn" id="add-waypoint-btn">添加航点</button>
+      <button class="map-control-btn" id="edit-waypoint-btn">编辑航点</button>
+      <button class="map-control-btn" id="delete-waypoint-btn">删除航点</button>
+      <button class="map-control-btn" id="optimize-route-btn">优化航线</button>
+    </div>
+    <div class="instruction-panel hidden" id="instruction-panel">
+      点击地图添加航点
+    </div>
+  </div>
+  <!-- 编辑 -->
+  <div class="edit-panel" id="edit-panel">
+    <div class="edit-panel-header">
+      <div class="edit-panel-title">编辑飞行任务</div>
+      <button class="close-btn" id="close-edit-panel">&times;</button>
+    </div>
+    <div class="edit-form">
+      <div class="form-group">
+        <label class="form-label">任务名称</label>
+        <input type="text" class="form-input" id="route-name" placeholder="输入任务名称">
+      </div>
+      <div class="form-group">
+        <label class="form-label">执行机型</label>
+        <select class="form-select" id="route-equipment">
+          <option value="载人一型无人机">载人一型无人机</option>
+          <option value="载人二型无人机">载人二型无人机</option>
+          <option value="载人三型无人机">载人三型无人机</option>
+          <option value="观测型无人机">观测型无人机</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">执行状态</label>
+        <select class="form-select" id="route-status">
+          <option value="pending">待执行</option>
+          <option value="active">执行中</option>
+          <option value="completed">已结束</option> 
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">执行日期时间</label>
+        <input type="datetime-local" class="form-input" id="route-time">
+      </div>
+      <div class="form-group">
+        <label class="form-label">航点列表</label>
+        <div class="waypoints-list" id="waypoints-list">
+          <!-- Waypoints will be added here dynamically -->
+        </div>
+      </div>
+    </div>
+    <div class="edit-form-footer">
+      <div class="action-btns">
+        <button class="action-btn btn-danger" id="cancel-edit-btn">取消</button>
+        <button class="action-btn btn-success" id="save-route-btn">保存</button>
+      </div>
+    </div>
+  </div>
+<!-- 删除弹框 -->
+  <div class="modal" id="confirm-modal" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">确认操作</div>
+        <button class="close-btn" id="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        确定要删除该航线吗？此操作无法撤销。
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn btn-secondary" id="cancel-modal" onclick="modelChoose('cancel',0)">取消</button>
+        <button class="action-btn btn-danger" id="confirm-modal-btn" onclick="modelChoose('cancel',1)">确认</button>
+      </div>
+    </div>
+  </div>
+<!-- 复制弹框 -->
+<div class="modal" id="copy-modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">复制任务</div>
+      <button class="close-btn" id="close-modal">&times;</button>
+    </div>
+    <div class="modal-body"> 
+        <label class="form-label">任务名称</label>
+        <input type="text" class="form-input" id="route-name" placeholder="输入任务名称">
+    </div>
+    <div class="modal-footer">
+      <button class="action-btn btn-secondary" id="copyCancel-modal" onclick="modelChoose('copyCancel',0)">取消</button>
+      <button class="action-btn btn-primary" id="confirm-modal-btn" onclick="modelChoose('copyCancel',1)">确认</button>
+    </div>
+  </div>
+</div>
+  <script>
+    // Initialize Mapbox
+    mapboxgl.accessToken = 'pk.eyJ1IjoiY3JpeXNvbiIsImEiOiJjazY5N2M5MWUwNDN0M2txdmR5dngyeno2In0.c28d-StW9f-vJ94XAMqBLw';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/dark-v10',
+            center: [114.0579, 22.5431], // 北京坐标
+            zoom: 11
+    });
+
+    // Sample route data
+    const routes = [
+      {
+        id: 1,
+        name: "深航19-飞行计划名称",
+        status: "active",
+        showStatus:"none",
+        execution: "执行中",
+        route_type: "载人飞行",
+        strategyType: "立即执行", 
+        equipment: "载人一型无人机",
+        time: "2025-03-08 11:00:03",
+        coordinates: [
+          [114.0279, 22.7231],
+          [114.0479, 22.6831],
+          [114.0679, 22.6431],
+          [114.0879, 22.5831],
+          [114.1079, 22.5431],
+          [114.1279, 22.4831]
+        ],
+        stats: {
+          waypoints: 6,
+          distance: 31.56,
+          duration: 14.32,
+          battery: 16
+        }
+      },
+      {
+        id: 2,
+        name: "深航17-飞行计划名称",
+        status: "pending",
+        showStatus:"flex",
+        execution: "待执行",
+        strategyType: "立即执行", 
+        route_type: "载人飞行",
+        equipment: "载人一型无人机",
+        time: "2025-03-04 15:00:03",
+        coordinates: [
+          [114.0379, 22.7331],
+          [114.0579, 22.6931],
+          [114.0779, 22.6531],
+          [114.0979, 22.5931],
+          [114.1179, 22.5531],
+          [114.1379, 22.4931],
+          [114.1579, 22.4431]
+        ],
+        stats: {
+          waypoints: 7,
+          distance: 35.2,
+          duration: 16.8,
+          battery: 19
+        }
+      },
+      {
+        id: 3,
+        name: "深航18-飞行计划名称",
+        status: "completed",
+        execution: "已结束",
+        showStatus:"none",
+        route_type: "载人飞行",
+        strategyType: "立即执行", 
+        equipment: "载人二型无人机",
+        time: "2025-03-06 10:00:03",
+        endtime: "2025-03-06 10:00:03",
+        coordinates: [
+          [114.0179, 22.7131],
+          [114.0379, 22.6631],
+          [114.0579, 22.6131],
+          [114.0779, 22.5531],
+          [114.0979, 22.5131]
+        ],
+        stats: {
+          waypoints: 5,
+          distance: 28.42,
+          duration: 12.15,
+          battery: 14
+        }
+      },
+      {
+        id: 4,
+        name: "深航16-飞行计划名称",
+        status: "completed",
+        execution: "已结束",
+        showStatus:"none",
+        strategyType: "立即执行", 
+        route_type: "载人飞行",
+        equipment: "载人一型无人机",
+        time: "2025-03-03 10:00:03",
+        coordinates: [
+          [114.0179, 22.6931],
+          [114.0379, 22.6531],
+          [114.0579, 22.6131],
+          [114.0779, 22.5731]
+        ],
+        stats: {
+          waypoints: 4,
+          distance: 22.8,
+          duration: 10.5,
+          battery: 12
+        }
+      } 
+    ];
+
+  
+
+    function modelChoose(type,num){
+      if(type=='cancel'){
+        document.getElementById('confirm-modal').style.display='none'
+        if(num==1){
+          showNotification('删除成功')
+        } 
+      }else{
+       document.getElementById('copy-modal').style.display='none'
+        if(num==1){
+          showNotification('复制成功')
+        } 
+      }
+     
+    }
+   // 显示通知
+   function showNotification(message) {
+      const notification = document.createElement('div');
+      notification.className = 'notification';
+      notification.textContent = message;
+      document.body.appendChild(notification); 
+      
+      notification.classList.add('show'); 
+      setTimeout(() => {
+        notification.classList.remove('show'); 
+      }, 400)
+ 
+    }
+    // Utility functions
+    function getExecutionStatus(status) {
+      return status === 'active' ? '执行中' : 
+             status === 'completed' ? '已结束' : '待执行';
+    }
+
+    function getStatusClass(status) {
+      return status === 'active' ? 'status-active' : 
+             status === 'completed' ? 'status-completed' : 'status-pending';
+    }
+
+    // Calculate distance between two points in km
+    function calculateDistance(coord1, coord2) {
+      const R = 6371; // Earth's radius in km
+      const dLat = (coord2[1] - coord1[1]) * Math.PI / 180;
+      const dLon = (coord2[0] - coord1[0]) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(coord1[1] * Math.PI / 180) * Math.cos(coord2[1] * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    // Calculate total route distance
+    function calculateRouteDistance(coordinates) {
+      let distance = 0;
+      for (let i = 0; i < coordinates.length - 1; i++) {
+        distance += calculateDistance(coordinates[i], coordinates[i+1]);
+      }
+      return distance.toFixed(2);
+    }
+
+    // Estimate flight duration based on distance (assume 60 km/h)
+    function estimateFlightDuration(distance) {
+      return (distance / 60).toFixed(2);
+    }
+
+    // Estimate battery usage (assume 0.5 units per km)
+    function estimateBatteryUsage(distance) {
+      return Math.ceil(distance * 0.5);
+    }
+
+    // Update route statistics
+    function updateRouteStats(coordinates) {
+      const distance = calculateRouteDistance(coordinates);
+      const duration = estimateFlightDuration(distance);
+      const battery = estimateBatteryUsage(distance);
+      
+      document.getElementById('waypoints-count').textContent = coordinates.length;
+      document.getElementById('flight-distance').textContent = distance;
+      document.getElementById('flight-duration').textContent = duration;
+      document.getElementById('battery-usage').textContent = battery;
+      
+      return {
+        waypoints: coordinates.length,
+        distance: parseFloat(distance),
+        duration: parseFloat(duration),
+        battery: parseInt(battery)
+      };
+    }
+
+    // Function to render route items
+    function renderRouteItems() {
+      const routesList = document.getElementById('routes-list');
+      routesList.innerHTML = '';
+      
+      routes.forEach(route => {
+        const statusClass = getStatusClass(route.status);
+        
+        const routeItem = document.createElement('div');
+        
+        routeItem.className = 'route-item';
+        routeItem.dataset.id = route.id;
+        
+
+        routeItem.innerHTML = `
+          <div class="route-header">
+            <div class="route-name">${route.name}</div>
+            <div class="route-status ${statusClass}">${route.execution}</div>
+          
+            <div class="menu-popup hidden">
+              <div class="menu-item" id="editElement" data-action="edit" style="display:${route.showStatus}">编辑</div>
+              <div class="menu-item" data-action="duplicate">复制</div> 
+              <div class="menu-item" data-action="delete">删除</div>
+            </div>
+          </div>
+          <div style='display:flex;'>
+            <div>
+              <div class="route-info">任务类型: ${route.strategyType}</div>
+              <div class="route-info">执行机型: ${route.equipment}</div>
+              <div class="route-time">执行时间: ${route.time}</div>
+            </div> 
+            <div class="route-menu"> 
+              <button><i class="bi bi-list"></i></button>
+              <button><i class="bi bi-three-dots"></i></button> 
+            </div>
+          </div>
+        `;
+         
+        routesList.appendChild(routeItem);
+        // Add click event to show route on map
+        routeItem.addEventListener('click', (e) => {
+          if (e.target.classList.contains('bi-three-dots') || e.target.closest('.menu-popup')) {
+            return;
+          }
+          
+          // Remove active class from all items
+          document.querySelectorAll('.route-item').forEach(item => {
+            item.classList.remove('active');
+          });
+          
+          // Add active class to clicked item
+          routeItem.classList.add('active');
+          
+          // Display the route on map
+          displayRoute(route);
+        });
+        
+        // Menu popup functionality
+        const menuBtn = routeItem.querySelector('.bi-three-dots');
+        const menuPopup = routeItem.querySelector('.menu-popup');
+        
+        menuBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          menuPopup.classList.toggle('hidden');
+        });
+        
+        // Menu actions
+        menuPopup.querySelectorAll('.menu-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menuPopup.classList.add('hidden');
+            
+            const action = item.dataset.action;
+            const routeId = parseInt(routeItem.dataset.id);
+            const route = routes.find(r => r.id === routeId);
+            
+            switch(action) {
+              case 'edit':
+                editRoute(route);
+                break;
+              case 'duplicate':
+                duplicateRoute(route);
+                break;
+              case 'export':
+                exportRoute(route);
+                break;
+              case 'delete':
+                deleteRoute(routeId);
+                break;
+            }
+          });
+        });
+      });
+        // 处理删除任务事件
+      function deleteRoute (routeId){
+        // 对话框显示
+        document.getElementById('confirm-modal').style.display='flex'
+      }
+      function duplicateRoute(route){
+        document.getElementById('copy-modal').style.display='flex'
+      }
+      function editRoute(routeId){
+        document.getElementById('edit-panel').style.left='50px'
+
+      }
+
+      // Close menu when clicking elsewhere
+      document.addEventListener('click', () => {
+        document.querySelectorAll('.menu-popup').forEach(popup => {
+          popup.classList.add('hidden');
+        });
+      });
+      
+      // Activate the first route by default
+      if (routes.length > 0) {
+        const firstRouteItem = routesList.querySelector('.route-item');
+        if (firstRouteItem) {
+          firstRouteItem.classList.add('active');
+          displayRoute(routes[0]);
+        }
+      }
+    }
+
+    // Function to display a route on the map
+    function displayRoute(route) {
+      // Remove existing route layers
+      if (map.getSource('route-source')) {
+        map.removeLayer('route-line');
+        map.removeLayer('waypoints');
+        map.removeSource('route-source');
+      }
+
+      // Update stats panel
+      document.getElementById('waypoints-count').textContent = route.stats.waypoints;
+      document.getElementById('flight-distance').textContent = route.stats.distance;
+      document.getElementById('flight-duration').textContent = route.stats.duration;
+      document.getElementById('battery-usage').textContent = route.stats.battery;
+
+      // Create GeoJSON for the route
+      const routeGeoJSON = {
+        'type': 'FeatureCollection',
+        'features': [
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'LineString',
+              'coordinates': route.coordinates
+            }
+          }
+        ]
+      };
+
+      // Create waypoints GeoJSON
+      const waypointsGeoJSON = {
+        'type': 'FeatureCollection',
+        'features': route.coordinates.map((coord, index) => ({
+          'type': 'Feature',
+          'geometry': {
+            'type': 'Point',
+            'coordinates': coord
+          },
+          'properties': {
+            'id': index
+          }
+        }))
+      };
+
+      // Add route source
+      map.addSource('route-source', {
+        'type': 'geojson',
+        'data': {
+          'type': 'FeatureCollection',
+          'features': [
+            ...routeGeoJSON.features,
+            ...waypointsGeoJSON.features
+          ]
+        }
+      });
+
+   
+      // Add route line layer
+      map.addLayer({
+        'id': 'route-line',
+        'type': 'line',
+        'source': 'route-source',
+        'layout': {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        'paint': {
+          'line-color': '#0078ff',
+          'line-width': 3,
+          'line-opacity': 0.8
+        },
+        'filter': ['==', '$type', 'LineString']
+      });
+
+      // Add waypoints layer
+      map.addLayer({
+        'id': 'waypoints',
+        'type': 'circle',
+        'source': 'route-source',
+        'paint': {
+          'circle-radius': 6,
+          'circle-color': '#0078ff',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#fff'
+        },
+        'filter': ['==', '$type', 'Point']
+      });
+
+      // Fit map to route bounds
+      const coordinates = route.coordinates;
+      const bounds = coordinates.reduce((bounds, coord) => {
+        return bounds.extend(coord);
+      }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+
+      map.fitBounds(bounds, {
+        padding: 80,
+        duration: 1000
+      });
+    }
+
+    // Initialize when map is loaded
+    map.on('load', function() {
+      renderRouteItems();
+    });
+  </script>
+</body>
+</html>
